@@ -63,7 +63,10 @@ app.post("/", (req, res) => {
   res.sendStatus(200);
 });
 
-// #TODO new route to return previous versions of the data
+// Route to return previous versions of the data
+app.get("/history", (req, res) => {
+  res.json(database.history);
+});
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
