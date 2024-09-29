@@ -26,7 +26,9 @@ const sanitizeInput = (input: string): string => {
 
 // Routes
 
-// GET route to return current data and hash
+/**
+ * GET route to return current data and hash
+ */
 app.get("/", (req, res) => {
   res.json({ data: database.data, hash: database.hash });
 });
@@ -63,11 +65,13 @@ app.post("/", (req, res) => {
   res.sendStatus(200);
 });
 
-// Route to return previous versions of the data
+/**
+ * GET route to return previous versions of the data
+ */
 app.get("/history", (req, res) => {
   res.json(database.history);
 });
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server running on port ${PORT}`);
 });
