@@ -1,40 +1,75 @@
 import React, { useEffect, useState } from "react";
+import { generateHash } from "./utilities/utils";
 
 const API_URL = "http://localhost:8080";
+const HASH_KEY = "stored_hash"; // Local storage key for the hash
 
 function App() {
   const [data, setData] = useState<string>(""); // Holds the current data
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [originalHash, setOriginalHash] = useState<string>(""); // Holds the hash for verification
+
+  const [history, setHistory] = useState<{ data: string; hash: string }[]>([]);
   const [tampered, setTampered] = useState<boolean>(false); // Tracks if data has been tampered
 
+  // Fetches data and hash from the server when the component mounts
   useEffect(() => {
     getData();
   }, []);
 
+  useEffect(() => {
+    getHistory(); // Fetch history for recovery option
+  }, [data]);
+
+  // Fetches data and its corresponding hash from the server
   const getData = async () => {
-    const response = await fetch(API_URL);
-    const { data, hash } = await response.json();
-    setData(data);
-    setData(data);
-    setOriginalHash(hash);
-    setTampered(false);
-    setErrorMessage("");
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) throw new Error("Failed to fetch data from server.");
+
+      const { data, hash } = await response.json();
+      setData(data);
+      setErrorMessage("");
+    } catch (error: any) {
+      setErrorMessage(`Error fetching data: ${error.message}`);
+    }
   };
 
+  // Fetches version history from server for recovery
+  const getHistory = async () => {
+    try {
+      const response = await fetch(`${API_URL}/history`);
+      if (!response.ok) throw new Error("Failed to fetch history from server.");
+
+      const history = await response.json();
+      setHistory(history);
+      setErrorMessage("");
+    } catch (error: any) {
+      setErrorMessage(`Error fetching data: ${error.message}`);
+    }
+  };
+
+  // Updates the data on the server after validation and sanitization
   const updateData = async () => {
-    if (!validateInput(data)) return;
+    if (!validateInput(data)) return; // Validate before sending
+    try {
+      const hash = generateHash(data); // Generate hash for the current data
+      localStorage.setItem(HASH_KEY, hash); // Store the hash locally
 
-    await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ data }),
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ data }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
 
-    await getData();
+      if (!response.ok) throw new Error("Failed to update data on server.");
+
+      await getData(); // Fetch updated data after success
+    } catch (error: any) {
+      setErrorMessage(`Error updating data: ${error.message}`);
+    }
   };
 
   // Validates input (e.g., non-empty strings)
@@ -53,37 +88,49 @@ function App() {
 
   // Verifies if the current data has been tampered with
   const verifyData = async () => {
-    // TODO: encrypt and compare with original hash
+    try {
+      const storedHash = localStorage.getItem(HASH_KEY);
 
-    if (1 === 1) {
-      alert("Data integrity verified: no tampering detected.");
-    } else {
-      setTampered(true);
-      setErrorMessage("Warning: Data integrity compromised!");
+      if (!storedHash) {
+        alert("No hash found, please update the data first.");
+        return;
+      }
+
+      const currentHash = generateHash(data); // Generate hash for current data
+      if (currentHash === storedHash) {
+        alert("Data integrity verified: no tampering detected.");
+      } else {
+        setTampered(true);
+        setErrorMessage("Warning: Data integrity compromised!");
+      }
+    } catch (error: any) {
+      setErrorMessage(`Error verifying data: ${error.message}`);
     }
   };
 
   // Fetches previous version of data to recover in case of tampering
   const recoverData = async () => {
-    const response = await fetch(`${API_URL}/history`);
-    const history = await response.json();
+    try {
+      if (history.length === 0) {
+        alert("No previous versions available.");
+        return;
+      }
 
-    if (history.length > 0) {
+      // Use the last version in history
       const lastVersion = history[history.length - 1];
       setData(lastVersion.data);
-      setOriginalHash(lastVersion.hash);
+      localStorage.setItem(HASH_KEY, lastVersion.hash); // Restore the correct hash
       setErrorMessage("Previous version recovered successfully.");
-      setTampered(false);
-    } else {
-      setErrorMessage("No previous versions available.");
+      setTampered(false); // Reset tampered state
+    } catch (error: any) {
+      setErrorMessage(`Error recovering data: ${error.message}`);
     }
   };
 
-  // Simulate tampered data (this function modifies the local state to simulate data tampering)
+  // Simulate tampering by modifying the data directly
   const simulateTamperedData = () => {
-    setData((prevData) => prevData + "_something");
-    setTampered(true);
-    setErrorMessage("Warning: Data tampered with for testing purposes.");
+    setData(data + " - tampered");
+    alert("Simulated tampering: Data has been modified.");
   };
 
   return (
@@ -123,13 +170,19 @@ function App() {
         <button style={{ fontSize: "20px" }} onClick={verifyData}>
           Verify Data
         </button>
-        <button style={{ fontSize: "20px" }} onClick={recoverData}>
-          Recover Data
-        </button>
-        <button style={{ fontSize: "20px" }} onClick={simulateTamperedData}>
-          Simulate Tampering
-        </button>
+        {tampered && (
+          <button style={{ fontSize: "20px" }} onClick={recoverData}>
+            Recover Data
+          </button>
+        )}
       </div>
+
+      <button
+        style={{ fontSize: "20px", marginTop: "20px" }}
+        onClick={simulateTamperedData}
+      >
+        Simulate Tampered Data
+      </button>
     </div>
   );
 }

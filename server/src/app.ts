@@ -7,9 +7,9 @@ const app = express();
 
 // Database structure to hold data, hash, and history for versioning
 const database = {
-  data: "Hello World",
+  data: "",
   hash: "",
-  history: [] as { data: string; hash: string }[],
+  versions: [] as { data: string; hash: string }[],
 };
 
 // Middleware to parse JSON and handle CORS
@@ -55,12 +55,12 @@ app.post("/", (req, res) => {
   // Sanitize input to remove potentially harmful content
   newData = sanitizeInput(newData);
 
-  // Save the current data to history for versioning
-  database.history.push({ data: database.data, hash: database.hash });
-
   // Update data and hash
   database.data = newData;
   database.hash = generateHash(newData);
+
+  // Save the current data to history for versioning
+  database.versions.push({ data: database.data, hash: database.hash });
 
   res.sendStatus(200);
 });
@@ -69,7 +69,7 @@ app.post("/", (req, res) => {
  * GET route to return previous versions of the data
  */
 app.get("/history", (req, res) => {
-  res.json(database.history);
+  res.json(database.versions);
 });
 
 app.listen(PORT, () => {
