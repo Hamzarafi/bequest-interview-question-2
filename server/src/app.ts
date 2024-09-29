@@ -1,12 +1,16 @@
 import express from "express";
 import cors from "cors";
+import { generateHash } from "../utilities/utils";
 
 const PORT = 8080;
 const app = express();
 
 // Database structure to hold data, hash, and history for versioning
-// #TODO: change structure to hold hash and history
-const database = { data: "Hello World" };
+const database = {
+  data: "Hello World",
+  hash: "",
+  history: [] as { data: string; hash: string }[],
+};
 
 // Middleware to parse JSON and handle CORS
 app.use(cors());
@@ -22,12 +26,15 @@ const sanitizeInput = (input: string): string => {
 
 // Routes
 
-// #TODO change to return current data and hash
+// GET route to return current data and hash
 app.get("/", (req, res) => {
-  res.json(database);
+  res.json({ data: database.data, hash: database.hash });
 });
 
-// #TODO update according to new data structure and validates and sanitizes input before storing
+/**
+ * POST route to update the data.
+ * Validates and sanitizes input before storing.
+ */
 app.post("/", (req, res) => {
   let newData = req.body.data;
 
@@ -46,7 +53,13 @@ app.post("/", (req, res) => {
   // Sanitize input to remove potentially harmful content
   newData = sanitizeInput(newData);
 
+  // Save the current data to history for versioning
+  database.history.push({ data: database.data, hash: database.hash });
+
+  // Update data and hash
   database.data = newData;
+  database.hash = generateHash(newData);
+
   res.sendStatus(200);
 });
 
