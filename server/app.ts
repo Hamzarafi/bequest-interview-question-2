@@ -8,14 +8,17 @@ const app = express();
 // #TODO: change structure to hold hash and history
 const database = { data: "Hello World" };
 
-
 // Middleware to parse JSON and handle CORS
 app.use(cors());
 app.use(express.json());
 
-
-// #TODO: add a sanitization function for input
-
+/**
+ * Sanitizes the input data to prevent any harmful content
+ * Only allows strings of certain length and removes harmful characters
+ */
+const sanitizeInput = (input: string): string => {
+  return input.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+};
 
 // Routes
 
@@ -26,12 +29,28 @@ app.get("/", (req, res) => {
 
 // #TODO update according to new data structure and validates and sanitizes input before storing
 app.post("/", (req, res) => {
-  database.data = req.body.data;
+  let newData = req.body.data;
+
+  // Validate input
+  if (typeof newData !== "string" || newData.trim() === "") {
+    return res
+      .status(400)
+      .json({ error: "Invalid data: must be a non-empty string" });
+  }
+  if (newData.length > 100) {
+    return res
+      .status(400)
+      .json({ error: "Invalid data: must be less than 100 characters" });
+  }
+
+  // Sanitize input to remove potentially harmful content
+  newData = sanitizeInput(newData);
+
+  database.data = newData;
   res.sendStatus(200);
 });
 
 // #TODO new route to return previous versions of the data
-
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
